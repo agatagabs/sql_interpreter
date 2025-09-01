@@ -1,13 +1,13 @@
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* Cores exatas da imagem "Dados para Elas x ARTEFACT" */
+  --dark-blue: #0e1739;
+  --medium-blue: #002244;
+  --light-blue: #273275;
+  --highlight-pink: #FF0066;
+  --light-pink: #FF69B4;
+  --white: #FFFFFF;
+  --gray: #F0F0F0;
+  --dark-gray: #333333;
 }
 
 html,
@@ -17,9 +17,9 @@ body {
 }
 
 body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  color: var(--white);
+  background: var(--dark-blue);
+  font-family: 'Courier New', monospace;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -35,8 +35,46 @@ a {
   text-decoration: none;
 }
 
-@media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
-  }
+/* Estilizando a scrollbar para combinar com o tema */
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--dark-blue);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--highlight-pink);
+  border-radius: 6px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--light-pink);
+}
+
+/* Estilizando a seleção de texto */
+::selection {
+  background-color: var(--highlight-pink);
+  color: var(--white);
+}
+
+/* Estilizando os autocompletes e highlights em código SQL */
+.sql-keyword {
+  color: var(--light-blue);
+  font-weight: bold;
+}
+
+.sql-string {
+  color: var(--light-pink);
+}
+
+.sql-number {
+  color: #ffcc00;
+}
+
+.sql-comment {
+  color: #7c7c7c;
+  font-style: italic;
 }
