@@ -64,13 +64,19 @@
   border: 1px solid var(--light-blue);
 }
 
+.tablesButton {
+  background-color: var(--medium-blue);
+  color: var(--white);
+  border: 1px solid var(--light-blue);
+}
+
 .examplesButton {
   background-color: var(--medium-blue);
   color: var(--white);
   border: 1px solid var(--highlight-pink);
 }
 
-.executeButton:hover, .saveButton:hover, .loadButton:hover, .examplesButton:hover {
+.executeButton:hover, .saveButton:hover, .loadButton:hover, .tablesButton:hover, .examplesButton:hover {
   filter: brightness(1.1);
   transform: translateY(-2px);
 }
@@ -92,7 +98,6 @@
   overflow: hidden;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   position: relative;
-  border: 1px solid var(--highlight-pink);
 }
 
 /* Container do editor com numeração de linhas */
@@ -147,6 +152,8 @@
   padding: 10px 15px;
   border-bottom: 1px solid var(--highlight-pink);
   border-radius: 8px 8px 0 0;
+  height: 45px; /* Altura fixa para garantir alinhamento */
+  box-sizing: border-box;
 }
 
 .resultTabs {
@@ -166,11 +173,37 @@
   cursor: pointer;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
   border: 1px solid transparent;
   transition: all 0.2s ease;
-  min-width: 90px;
+  min-width: 120px;
+  max-width: 200px;
   white-space: nowrap;
+}
+
+.tabName {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tabActions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tabNameInput {
+  background-color: var(--medium-blue);
+  color: var(--white);
+  border: 1px solid var(--highlight-pink);
+  border-radius: 3px;
+  padding: 2px 5px;
+  font-size: 12px;
+  width: 100px;
+  outline: none;
 }
 
 .activeTab {
@@ -430,8 +463,7 @@
 
 .resultTable td {
   padding: 10px 15px;
-  border: 1px solid var(--medium-blue);
-  border-top: none;
+  border-bottom: 1px solid var(--medium-blue);
   color: var(--white);
   transition: background-color 0.2s ease;
   max-width: 400px;
@@ -469,6 +501,33 @@
   padding: 5px 10px;
   border-radius: 4px;
   border: 1px solid var(--highlight-pink);
+}
+
+.resultActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.downloadButton {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  background-color: var(--medium-blue);
+  color: var(--white);
+  border: 1px solid var(--highlight-pink);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.downloadButton:hover {
+  background-color: var(--highlight-pink);
+  transform: translateY(-2px);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2);
 }
 
 .noResults {

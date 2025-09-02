@@ -10,12 +10,14 @@ import { parseCSV, inferColumnTypes, generateCreateTableSQL, generateInsertSQL }
 export function Sql() {
   const [query, setQuery] = useState("")
   const [db, setDb] = useState(null)
-  const [results, setResults] = useState([{ id: 1, data: [], error: "", timestamp: new Date().toISOString() }])
+  const [results, setResults] = useState([{ id: 1, name: "Result 1", data: [], error: "", timestamp: new Date().toISOString() }])
   const [activeResultId, setActiveResultId] = useState(1)
   const [showExamples, setShowExamples] = useState(false)
   const [lineCount, setLineCount] = useState(1)
   const [highlightedQuery, setHighlightedQuery] = useState("")
   const [importedTables, setImportedTables] = useState([])
+  const [editingTabId, setEditingTabId] = useState(null)
+  const [editingTabName, setEditingTabName] = useState("")
   const textareaRef = useRef(null)
   const lineNumbersRef = useRef(null)
   const previewRef = useRef(null)
@@ -26,17 +28,74 @@ export function Sql() {
       try {
         const SQL = await initSqlJs({
           locateFile: file => `/sql-wasm.wasm` 
-        })
-        const dbInstance = new SQL.Database()
-        dbInstance.run("CREATE TABLE users (id INTEGER, name TEXT);") 
-        dbInstance.run("INSERT INTO users VALUES (1, 'Leonardo'), (2, 'Agata');")
-        setDb(dbInstance)
+        });
+        
+        const dbInstance = new SQL.Database();
+        
+        // Criar uma tabela básica de corridas com estrutura mais completa
+        dbInstance.run(`
+          CREATE TABLE corridas (
+            id INTEGER PRIMARY KEY,
+            piloto TEXT,
+            equipe TEXT,
+            posicao INTEGER,
+            pontos REAL,
+            tempo TEXT,
+            data_corrida DATE
+          );
+        `);
+        
+        // Inserir dados da temporada atual (01/09/2025)
+        dbInstance.run(`
+          INSERT INTO corridas (id, piloto, equipe, posicao, pontos, tempo, data_corrida) VALUES
+          (1, 'Max Verstappen', 'Red Bull Racing', 1, 25.0, '1:29:14.292', '2025-09-01'),
+          (2, 'Charles Leclerc', 'Ferrari', 2, 18.0, '1:29:18.475', '2025-09-01'),
+          (3, 'Lando Norris', 'McLaren', 3, 15.0, '1:29:23.109', '2025-09-01'),
+          (4, 'Lewis Hamilton', 'Mercedes', 4, 12.0, '1:29:28.334', '2025-09-01'),
+          (5, 'Carlos Sainz', 'Ferrari', 5, 10.0, '1:29:35.128', '2025-09-01'),
+          (6, 'George Russell', 'Mercedes', 6, 8.0, '1:29:41.092', '2025-09-01'),
+          (7, 'Sergio Perez', 'Red Bull Racing', 7, 6.0, '1:29:48.546', '2025-09-01'),
+          (8, 'Fernando Alonso', 'Aston Martin', 8, 4.0, '1:29:54.872', '2025-09-01'),
+          (9, 'Oscar Piastri', 'McLaren', 9, 2.0, '1:30:01.335', '2025-09-01'),
+          (10, 'Pierre Gasly', 'Alpine', 10, 1.0, '1:30:08.940', '2025-09-01'),
+          (11, 'Lance Stroll', 'Aston Martin', 11, 0.0, '1:30:15.103', '2025-09-01'),
+          (12, 'Alexander Albon', 'Williams', 12, 0.0, '1:30:22.749', '2025-09-01'),
+          (13, 'Nico Hulkenberg', 'Haas F1 Team', 13, 0.0, '1:30:29.388', '2025-09-01'),
+          (14, 'Daniel Ricciardo', 'RB', 14, 0.0, '1:30:35.917', '2025-09-01'),
+          (15, 'Kevin Magnussen', 'Haas F1 Team', 15, 0.0, '1:30:42.630', '2025-09-01')
+        `);
+        
+        setDb(dbInstance);
+        
+        // Adicionar à lista de tabelas importadas
+        setImportedTables([{ name: 'corridas', columns: 7, rows: 15 }]);
+        
+        // Configurar uma consulta de exemplo
+        const exampleQuery = `SELECT * FROM corridas LIMIT 10;`;
+        setQuery(exampleQuery);
+        setHighlightedQuery(highlightSQLCode(exampleQuery));
+        updateLineCount();
       } catch (err) {
-        setError("Erro ao carregar o SQL.js: " + err.message)
+        console.error("Erro ao carregar o SQL.js:", err);
+        
+        // Mostrar erro na interface
+        setResults(prev => {
+          const updatedResults = [...prev];
+          const activeResultIndex = updatedResults.findIndex(r => r.id === activeResultId);
+          
+          if (activeResultIndex !== -1) {
+            updatedResults[activeResultIndex] = {
+              ...updatedResults[activeResultIndex],
+              error: `Erro ao inicializar banco de dados: ${err.message}`
+            };
+          }
+          
+          return updatedResults;
+        });
       }
     }
-    loadDb()
-  }, [])
+    loadDb();
+  }, []);
   
   // Inicializa o destacamento de código
   useEffect(() => {
@@ -89,13 +148,27 @@ export function Sql() {
     }
   }
   
-  function addNewResultTab() {
-    const newId = results.length > 0 ? Math.max(...results.map(r => r.id)) + 1 : 1;
-    setResults(prev => [
-      ...prev,
-      { id: newId, data: [], error: "", timestamp: new Date().toISOString() }
-    ]);
-    setActiveResultId(newId);
+  function addNewResultTab(tabName = null) {
+    try {
+      const newId = results.length > 0 ? Math.max(...results.map(r => r.id)) + 1 : 1;
+      const defaultName = tabName || `Result ${newId}`;
+      
+      setResults(prev => [
+        ...prev,
+        { 
+          id: newId, 
+          name: defaultName,
+          data: [], 
+          error: "", 
+          timestamp: new Date().toISOString() 
+        }
+      ]);
+      setActiveResultId(newId);
+      return newId;
+    } catch (err) {
+      console.error("Erro ao adicionar nova aba:", err);
+      return null;
+    }
   }
   
   function switchToResultTab(id) {
@@ -111,6 +184,49 @@ export function Sql() {
     // Se o tab ativo foi removido, selecionar o primeiro disponível
     if (activeResultId === id) {
       setActiveResultId(updatedResults[0].id);
+    }
+    
+    // Se estávamos editando essa aba, cancelar a edição
+    if (editingTabId === id) {
+      setEditingTabId(null);
+      setEditingTabName("");
+    }
+  }
+  
+  function startEditingTabName(id, currentName, e) {
+    e.stopPropagation(); // Evitar que o clique se propague para a aba
+    setEditingTabId(id);
+    setEditingTabName(currentName);
+  }
+  
+  function handleTabNameChange(e) {
+    setEditingTabName(e.target.value);
+  }
+  
+  function saveTabName() {
+    if (editingTabId && editingTabName.trim() !== '') {
+      setResults(prevResults => {
+        return prevResults.map(res => {
+          if (res.id === editingTabId) {
+            return { ...res, name: editingTabName.trim() };
+          }
+          return res;
+        });
+      });
+    }
+    
+    // Limpar o estado de edição
+    setEditingTabId(null);
+    setEditingTabName("");
+  }
+  
+  function handleTabNameKeyDown(e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      saveTabName();
+    } else if (e.key === 'Escape') {
+      setEditingTabId(null);
+      setEditingTabName("");
     }
   }
 
@@ -168,24 +284,7 @@ export function Sql() {
   
   // Função para destacar palavras-chave SQL
   function highlightSQLCode(text) {
-    if (!text) return "";
-    
-    // Lista de palavras-chave SQL para destacar
-    const sqlKeywords = [
-      'SELECT', 'FROM', 'WHERE', 'INSERT', 'UPDATE', 'DELETE', 
-      'CREATE', 'ALTER', 'DROP', 'TABLE', 'DATABASE', 'INTO', 'VALUES', 
-      'JOIN', 'LEFT', 'RIGHT', 'INNER', 'OUTER', 'GROUP', 'BY', 
-      'ORDER', 'HAVING', 'LIMIT', 'AS', 'ON', 'AND', 'OR', 'NOT', 
-      'NULL', 'IS', 'IN', 'BETWEEN', 'LIKE', 'DISTINCT', 'COUNT', 
-      'SUM', 'AVG', 'MIN', 'MAX', 'PRIMARY', 'KEY', 'FOREIGN', 'REFERENCES',
-      'IF', 'EXISTS', 'SET', 'CONSTRAINT', 'DEFAULT'
-    ];
-    
-    // Substitui as palavras-chave por spans com classe para coloração (com cor rosa)
-    const highlighted = text.replace(
-      new RegExp(`\\b(${sqlKeywords.join('|')})\\b`, 'gi'),
-      match => `<span class="${styles.sqlKeyword}" style="color: var(--highlight-pink); font-weight: bold;">${match}</span>`
-    );
+    return highlightSqlSyntax(text);
     
     return highlighted;
   }
@@ -271,20 +370,48 @@ export function Sql() {
             setHighlightedQuery(highlightSQLCode(exampleQuery));
             updateLineCount();
             
-            // Mostrar mensagem de sucesso
-            addNewResultTab();
-            setResults(prev => {
-              const newResults = [...prev];
-              const lastIndex = newResults.length - 1;
-              newResults[lastIndex] = {
-                ...newResults[lastIndex],
-                data: [],
-                error: "",
-                successMessage: `Tabela '${tableName}' importada com sucesso! ${rows.length} linhas inseridas.`,
-                timestamp: new Date().toISOString()
-              };
-              return newResults;
-            });
+            // Criar uma única aba para mostrar os resultados da importação
+            const queryTabId = addNewResultTab(`${tableName} - Importado`);
+            
+            try {
+              // Executar consulta de exemplo
+              const res = db.exec(exampleQuery);
+              
+              // Atualizar a aba com os dados da consulta e mensagem de sucesso
+              setResults(prev => {
+                const newResults = [...prev];
+                const tabIndex = newResults.findIndex(r => r.id === queryTabId);
+                
+                if (tabIndex !== -1) {
+                  newResults[tabIndex] = {
+                    ...newResults[tabIndex],
+                    data: res,
+                    error: "",
+                    query: exampleQuery,
+                    successMessage: `Tabela '${tableName}' importada com sucesso! ${rows.length} linhas inseridas.`,
+                    timestamp: new Date().toISOString()
+                  };
+                }
+                return newResults;
+              });
+            } catch (err) {
+              // Em caso de erro na consulta
+              setResults(prev => {
+                const newResults = [...prev];
+                const tabIndex = newResults.findIndex(r => r.id === queryTabId);
+                
+                if (tabIndex !== -1) {
+                  newResults[tabIndex] = {
+                    ...newResults[tabIndex],
+                    data: [],
+                    error: `Erro ao executar consulta: ${err.message}`,
+                    successMessage: `Tabela '${tableName}' importada com sucesso! ${rows.length} linhas inseridas.`,
+                    timestamp: new Date().toISOString()
+                  };
+                }
+                return newResults;
+              });
+            }
             
           } catch (err) {
             // Em caso de erro na criação da tabela
@@ -362,6 +489,70 @@ export function Sql() {
       }
     } catch (err) {
       console.error("Erro ao listar tabelas:", err);
+    }
+  }
+  
+  // Função para baixar os resultados da consulta em formato CSV
+  function downloadResultsAsCSV(resultData) {
+    if (!resultData || resultData.length === 0 || !resultData[0].columns || !resultData[0].values) {
+      console.error("Sem dados para baixar");
+      return;
+    }
+    
+    try {
+      // Criar o conteúdo CSV
+      const columns = resultData[0].columns;
+      const rows = resultData[0].values;
+      
+      // Montar o cabeçalho
+      let csvContent = columns.join(',') + '\n';
+      
+      // Montar as linhas de dados
+      rows.forEach(row => {
+        const processedRow = row.map(cell => {
+          // Tratar células com vírgulas, aspas, quebras de linha
+          if (cell === null) return '';
+          const cellStr = String(cell);
+          
+          // Se a célula contiver vírgula, aspas ou quebras de linha, coloque entre aspas
+          if (cellStr.includes(',') || cellStr.includes('"') || cellStr.includes('\n')) {
+            // Substituir aspas por aspas duplas (padrão CSV)
+            return `"${cellStr.replace(/"/g, '""')}"`;
+          }
+          
+          return cellStr;
+        });
+        
+        csvContent += processedRow.join(',') + '\n';
+      });
+      
+      // Criar o blob com o conteúdo CSV
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      
+      // Criar um link temporário para download
+      const link = document.createElement('a');
+      
+      // Obter o nome da aba atual
+      const activeResult = results.find(r => r.id === activeResultId);
+      const fileName = activeResult?.name || `query_result_${new Date().getTime()}`;
+      
+      // Configurar o link de download
+      link.href = URL.createObjectURL(blob);
+      link.download = `${fileName.replace(/\s+/g, '_')}.csv`;
+      link.style.display = 'none';
+      
+      // Adicionar o link ao documento, clicar e remover
+      document.body.appendChild(link);
+      link.click();
+      
+      // Limpar após o download
+      setTimeout(() => {
+        document.body.removeChild(link);
+        URL.revokeObjectURL(link.href);
+      }, 100);
+      
+    } catch (err) {
+      console.error("Erro ao baixar resultados:", err);
     }
   }
 
@@ -446,18 +637,40 @@ export function Sql() {
                   className={`${styles.resultTab} ${res.id === activeResultId ? styles.activeTab : ''}`}
                   onClick={() => switchToResultTab(res.id)}
                 >
-                  <span>Result {res.id}</span>
-                  {results.length > 1 && (
-                    <button 
-                      className={styles.closeTab} 
-                      onClick={(e) => { e.stopPropagation(); removeResultTab(res.id); }}
+                  {editingTabId === res.id ? (
+                    <input 
+                      className={styles.tabNameInput}
+                      value={editingTabName}
+                      onChange={handleTabNameChange}
+                      onKeyDown={handleTabNameKeyDown}
+                      onBlur={saveTabName}
+                      autoFocus
+                      onClick={e => e.stopPropagation()}
+                    />
+                  ) : (
+                    <span 
+                      className={styles.tabName} 
+                      onDoubleClick={(e) => startEditingTabName(res.id, res.name, e)}
+                      title="Clique duplo para renomear"
                     >
-                      &times;
-                    </button>
+                      {res.name}
+                    </span>
                   )}
+                  
+                  <div className={styles.tabActions}>
+                    {results.length > 1 && (
+                      <button 
+                        className={styles.closeTab} 
+                        onClick={(e) => { e.stopPropagation(); removeResultTab(res.id); }}
+                        title="Fechar aba"
+                      >
+                        &times;
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
-              <button className={styles.addTabButton} onClick={addNewResultTab}>+</button>
+              <button className={styles.addTabButton} onClick={() => addNewResultTab()}>+</button>
             </div>
           </div>
           
@@ -510,7 +723,16 @@ export function Sql() {
                   <>
                     <div className={styles.resultStats}>
                       <span>Consulta #{res.id} - {new Date(res.timestamp).toLocaleTimeString()}</span>
-                      <span>{currentResult[0]?.values?.length || 0} linhas | {currentResult[0]?.columns?.length || 0} colunas</span>
+                      <div className={styles.resultActions}>
+                        <span>{currentResult[0]?.values?.length || 0} linhas | {currentResult[0]?.columns?.length || 0} colunas</span>
+                        <button 
+                          className={styles.downloadButton}
+                          onClick={() => downloadResultsAsCSV(currentResult)}
+                          title="Baixar resultados como CSV"
+                        >
+                          Download
+                        </button>
+                      </div>
                     </div>
                     {res.query && <div className={styles.executedQuery}>{res.query}</div>}
                     <table className={styles.resultTable}>

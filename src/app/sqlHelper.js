@@ -17,39 +17,37 @@ export const SQL_KEYWORDS = [
 
 // Função para adicionar cores à sintaxe SQL
 export function highlightSqlSyntax(code) {
-  if (!code) return code;
+  if (!code) return "";
 
-  // Dividindo o código em tokens (simplificado)
-  let tokens = code.split(/(\s+|[,;().])/);
-  
-  // Destaca palavras-chave SQL
-  const highlighted = tokens.map(token => {
-    const upperToken = token.toUpperCase();
-    
-    if (SQL_KEYWORDS.includes(upperToken)) {
-      return `<span class="sql-keyword">${token}</span>`;
-    } 
-    
-    // Destaca strings
-    if ((token.startsWith("'") && token.endsWith("'")) || 
-        (token.startsWith('"') && token.endsWith('"'))) {
-      return `<span class="sql-string">${token}</span>`;
-    }
-    
-    // Destaca números
-    if (!isNaN(token) && token.trim() !== '') {
-      return `<span class="sql-number">${token}</span>`;
-    }
-    
-    // Destaca comentários (simplificado)
-    if (token.trim().startsWith('--')) {
-      return `<span class="sql-comment">${token}</span>`;
-    }
-    
-    return token;
+  // Regex patterns para tipos de conteúdo SQL
+  const patterns = [
+    // Comentários
+    { pattern: /--(.*?)(?:\r?\n|$)/g, style: 'sql-comment', color: '#888' },
+    // Strings com aspas simples
+    { pattern: /'(.*?)'/g, style: 'sql-string', color: '#28a745' },
+    // Strings com aspas duplas
+    { pattern: /"(.*?)"/g, style: 'sql-string', color: '#28a745' },
+    // Palavras-chave SQL (case insensitive)
+    { 
+      pattern: new RegExp(`\\b(${SQL_KEYWORDS.join('|')})\\b`, 'gi'),
+      style: 'sql-keyword', 
+      color: '#FF0066',
+      transform: match => match.toUpperCase()
+    },
+    // Números
+    { pattern: /\b\d+(\.\d+)?\b/g, style: 'sql-number', color: '#17a2b8' }
+  ];
+
+  // Aplicar cada padrão em sequência
+  let html = code;
+  patterns.forEach(({ pattern, style, color, transform }) => {
+    html = html.replace(pattern, (match, group) => {
+      const content = transform ? transform(match) : (group !== undefined ? group : match);
+      return `<span class="${style}" style="color: ${color}; font-weight: ${style === 'sql-keyword' ? 'bold' : 'normal'}">${style === 'sql-comment' ? match : content}</span>`;
+    });
   });
-  
-  return highlighted.join('');
+
+  return html;
 }
 
 // Função para formatar o código SQL
