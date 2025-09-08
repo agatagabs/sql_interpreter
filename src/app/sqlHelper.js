@@ -1,77 +1,190 @@
-'use client';
+// sqlHelper.ts
+// Destaque de keywords com preservação de strings e comentários.
+// Mantém seguro via escape de HTML.
 
-// Uma lista simples de palavras-chave SQL para colorir no editor
-export const SQL_KEYWORDS = [
-  'SELECT', 'FROM', 'WHERE', 'INSERT', 'UPDATE', 'DELETE',
-  'CREATE', 'ALTER', 'DROP', 'TABLE', 'DATABASE', 'VIEW',
-  'INTO', 'VALUES', 'GROUP', 'BY', 'ORDER', 'HAVING',
-  'JOIN', 'LEFT', 'RIGHT', 'INNER', 'OUTER', 'FULL',
-  'ON', 'AS', 'AND', 'OR', 'NOT', 'NULL', 'IS', 'IN',
-  'BETWEEN', 'LIKE', 'COUNT', 'SUM', 'AVG', 'MAX', 'MIN',
-  'DISTINCT', 'LIMIT', 'OFFSET', 'ASC', 'DESC', 'CASE',
-  'WHEN', 'THEN', 'ELSE', 'END', 'IF', 'EXISTS', 'PRIMARY',
-  'KEY', 'FOREIGN', 'REFERENCES', 'UNIQUE', 'INDEX', 'INTEGER',
-  'TEXT', 'VARCHAR', 'DATE', 'DATETIME', 'BOOLEAN', 'FLOAT',
-  'DOUBLE', 'DECIMAL', 'NUMERIC', 'CONSTRAINT', 'DEFAULT'
+const KEYWORD_PHRASES = [
+  "FULL OUTER JOIN",
+  "LEFT OUTER JOIN",
+  "RIGHT OUTER JOIN",
+  "INNER JOIN",
+  "LEFT JOIN",
+  "RIGHT JOIN",
+  "FULL JOIN",
+  "GROUP BY",
+  "ORDER BY",
+  "PARTITION BY",
+  "UNION ALL",
+  "FETCH FIRST",
+  "FETCH NEXT",
+  "QUALIFY" // BigQuery
 ];
 
-// Função para adicionar cores à sintaxe SQL
-export function highlightSqlSyntax(code) {
-  if (!code) return "";
+const KEYWORDS = new Set([
+  // Consulta e filtragem
+  "SELECT","FROM","WHERE","GROUP","BY","HAVING","ORDER","LIMIT","OFFSET","DISTINCT",
+  "UNION","INTERSECT","EXCEPT","ALL","WITH","QUALIFY",
+  // Joins
+  "JOIN","INNER","LEFT","RIGHT","FULL","CROSS","OUTER","NATURAL","ON","USING",
+  // DML
+  "INSERT","INTO","VALUES","UPDATE","SET","DELETE","MERGE","RETURNING",
+  // DDL
+  "CREATE","ALTER","DROP","TRUNCATE","RENAME","TABLE","VIEW","MATERIALIZED","INDEX","SEQUENCE","SCHEMA","DATABASE",
+  // Predicados e lógica
+  "AND","OR","NOT","NULL","IS","IN","LIKE","BETWEEN","EXISTS","ANY","SOME","ALL",
+  "CASE","WHEN","THEN","ELSE","END",
+  // Janela
+  "OVER","PARTITION","ROWS","RANGE"
+]);
 
-  // Regex patterns para tipos de conteúdo SQL
-  const patterns = [
-    // Comentários
-    { pattern: /--(.*?)(?:\r?\n|$)/g, style: 'sql-comment', color: '#888' },
-    // Strings com aspas simples
-    { pattern: /'(.*?)'/g, style: 'sql-string', color: '#28a745' },
-    // Strings com aspas duplas
-    { pattern: /"(.*?)"/g, style: 'sql-string', color: '#28a745' },
-    // Palavras-chave SQL (case insensitive)
-    { 
-      pattern: new RegExp(`\\b(${SQL_KEYWORDS.join('|')})\\b`, 'gi'),
-      style: 'sql-keyword', 
-      color: '#FF0066',
-      transform: match => match.toUpperCase()
-    },
-    // Números
-    { pattern: /\b\d+(\.\d+)?\b/g, style: 'sql-number', color: '#17a2b8' }
-  ];
-
-  // Aplicar cada padrão em sequência
-  let html = code;
-  patterns.forEach(({ pattern, style, color, transform }) => {
-    html = html.replace(pattern, (match, group) => {
-      const content = transform ? transform(match) : (group !== undefined ? group : match);
-      return `<span class="${style}" style="color: ${color}; font-weight: ${style === 'sql-keyword' ? 'bold' : 'normal'}">${style === 'sql-comment' ? match : content}</span>`;
-    });
-  });
-
-  return html;
+function escapeHtml(s) {
+  return s
+    .replaceAll(/&/g, "&amp;")
+    .replaceAll(/</g, "&lt;")
+    .replaceAll(/>/g, "&gt;");
 }
 
-// Função para formatar o código SQL
-export function formatSql(sql) {
-  // Esta é uma implementação básica, para uma formatação mais robusta 
-  // seria melhor usar uma biblioteca dedicada
-  
-  if (!sql) return sql;
-  
-  // Remove espaços extras
-  sql = sql.trim();
-  
-  // Adiciona quebra de linha após ponto e vírgula
-  sql = sql.replace(/;/g, ';\n\n');
-  
-  // Adiciona quebra de linha após palavras-chave principais
-  const keywords = ['SELECT', 'FROM', 'WHERE', 'GROUP BY', 'ORDER BY', 'HAVING', 
-                   'INSERT INTO', 'VALUES', 'UPDATE', 'SET', 'DELETE FROM',
-                   'CREATE TABLE', 'ALTER TABLE', 'DROP TABLE'];
-                   
-  keywords.forEach(keyword => {
-    const regex = new RegExp(`\\b${keyword}\\b`, 'gi');
-    sql = sql.replace(regex, `\n${keyword}`);
-  });
-  
-  return sql;
+export function highlightSqlSyntax(input) {
+  if (!input) return "";
+  const src = escapeHtml(input);
+  let i = 0;
+  const n = src.length;
+  let out = "";
+
+  const push = (s) => (out += s);
+
+  const consumeUntilEol = () => {
+    let j = i;
+    while (j < n && src[j] !== "\n") j++;
+    const chunk = src.slice(i, j);
+    i = j;
+    return chunk;
+  };
+
+  const consumeUntil = (endToken, allowEscapeDouble = false) => {
+    let j = i;
+    while (j < n) {
+      if (allowEscapeDouble && src[j] === endToken && src[j + 1] === endToken) {
+        j += 2; // '' ou ""
+        continue;
+      }
+      if (src[j] === endToken) {
+        const chunk = src.slice(i, j + 1);
+        i = j + 1;
+        return chunk;
+      }
+      j++;
+    }
+    const chunk = src.slice(i);
+    i = n;
+    return chunk;
+  };
+
+  const tryMatchPhrase = () => {
+    for (const phrase of KEYWORD_PHRASES) {
+      const re = new RegExp("^" + phrase.replace(/\s+/g, "\\s+") + "\\b", "i");
+      const m = src.slice(i).match(re);
+      if (m) {
+        i += m[0].length;
+        return `<span class="kw">${m[0]}</span>`;
+      }
+    }
+    return null;
+  };
+
+  const consumeWord = () => {
+    const start = i;
+    while (i < n && /[A-Za-z0-9_]/.test(src[i])) i++;
+    const word = src.slice(start, i);
+    const upper = word.toUpperCase();
+    if (KEYWORDS.has(upper)) {
+      return `<span class="kw">${word}</span>`;
+    }
+    return word;
+  };
+
+  const consumeNumber = () => {
+    const start = i;
+    while (i < n && /[0-9]/.test(src[i])) i++;
+    if (src[i] === "." && /[0-9]/.test(src[i + 1])) {
+      i++;
+      while (i < n && /[0-9]/.test(src[i])) i++;
+    }
+    return `<span class="num">${src.slice(start, i)}</span>`;
+  };
+
+  while (i < n) {
+    const ch = src[i];
+
+    // -- comentário de linha
+    if (ch === "-" && src[i + 1] === "-") {
+      const start = i;
+      i += 2;
+      consumeUntilEol();
+      const txt = src.slice(start, i);
+      push(`<span class="cmt">${txt}</span>`);
+      continue;
+    }
+
+    // /* ... */ comentário de bloco
+    if (ch === "/" && src[i + 1] === "*") {
+      const start = i;
+      i += 2;
+      let j = i;
+      while (j < n && !(src[j] === "*" && src[j + 1] === "/")) j++;
+      if (j < n) j += 2;
+      const chunk = src.slice(start, j);
+      i = j;
+      push(`<span class="cmt">${chunk}</span>`);
+      continue;
+    }
+
+    // strings '...'
+//   if (ch === "'") {
+//   const start = i; i++;
+//   const str = src.slice(start, i) + consumeUntil("'", true).slice(1);
+//   push(`<span class="str">${str}</span>`);
+//   continue;
+// }
+// if (ch === '"') {
+//   const start = i; i++;
+//   const str = src.slice(start, i) + consumeUntil('"', true).slice(1);
+//   push(`<span class="str">${ str}</span>`);
+//   continue;
+// }
+
+    // identificadores `...` (MySQL/SQLite)
+    if (ch === "`") {
+      const start = i;
+      i++;
+      const str = src.slice(start, i) + consumeUntil("`", false).slice(1);
+      push(`<span class="idf">${str}</span>`);
+      continue;
+    }
+
+    const phrase = tryMatchPhrase();
+    if (phrase) {
+      push(phrase);
+      continue;
+    }
+
+    if (/[0-9]/.test(ch)) {
+      push(consumeNumber());
+      continue;
+    }
+
+    if (/[A-Za-z_]/.test(ch)) {
+      push(consumeWord());
+      continue;
+    }
+
+    push(ch);
+    i++;
+  }
+
+  return out;
+}
+
+// Placeholder simples — se você já tem um formatador melhor, mantenha o seu.
+export function formatSql(input){
+  return input;
 }

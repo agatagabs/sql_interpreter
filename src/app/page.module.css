@@ -369,6 +369,10 @@
   overflow: auto;
   letter-spacing: 0.5px;
   z-index: 2;
+    background: transparent;
+  color: transparent;         /* texto invisível */
+  caret-color: var(--white);  /* cursor visível */
+  z-index: 2;
 }
 
 .input:focus {
@@ -631,4 +635,51 @@
   white-space: pre;
   max-height: 100px;
   overflow-y: auto;
+}/* Overlay do highlight */
+.editorContent {
+  position: relative;
+}
+
+.input {
+  position: relative;
+  background: transparent;
+  color: transparent;         /* texto invisível (overlay mostra o conteúdo) */
+  caret-color: #fff;          /* cursor visível */
+  z-index: 2;
+}
+
+.syntaxHighlight {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  pointer-events: none;
+  z-index: 1;
+  color: #e5e7eb; /* cor base do texto do overlay */
+}
+
+/* tokens */
+.syntaxHighlight :global(.kw)  { font-weight: 700; color: var(--highlight-pink); }
+.syntaxHighlight :global(.str) { color: var(--light-pink); font-weight: 600; }
+.syntaxHighlight :global(.num) { color: #ffcc00; }
+.syntaxHighlight :global(.cmt) { color: #7c7c7c; font-style: italic; }
+.syntaxHighlight :global(.idf) { color: #f59e0b; }
+
+/* manter fontes/spacing iguais em textarea e pre */
+.editorContent .input,
+.editorContent .syntaxHighlight {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 14px;
+  line-height: 1.5;
+  padding: 12px 14px;
+  tab-size: 2;
+  white-space: pre-wrap;
+  /* ❗ evite letter-spacing no editor para não deslocar caracteres */
+  letter-spacing: 0;
+}
+
+/* números de linha (ajuste se necessário) */
+.lineNumbers {
+  overflow: hidden;
 }
