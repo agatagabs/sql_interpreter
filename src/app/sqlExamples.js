@@ -2,39 +2,14 @@
 
 export const sqlExamples = [
   {
-    title: "Tabela de Funcionários",
-    description: "Cria uma tabela de funcionários e insere alguns dados de exemplo",
-    code: `-- Basic SQL Demo
--- Create a simple employees table
-DROP TABLE IF EXISTS employees;
-CREATE TABLE employees (
-  id INTEGER PRIMARY KEY,
-  name TEXT NOT NULL,
-  department TEXT,
-  salary NUMERIC,
-  hire_date DATE
-);
-
--- Insert sample data
-INSERT INTO employees (name, department, salary, hire_date) VALUES
-('Alice Smith', 'Engineering', 85000, '2020-01-15'),
-('Bob Johnson', 'Marketing', 72000, '2019-03-20'),
-('Carol Williams', 'Engineering', 92000, '2018-11-07'),
-('Dave Brown', 'Finance', 115000, '2017-05-12'),
-('Eve Davis', 'Engineering', 110000, '2021-08-30');
-
--- Query the data
-SELECT 
-  department,
-  COUNT(*) as employee_count,
-  ROUND(AVG(salary), 2) as avg_salary
-FROM employees
-GROUP BY department
-ORDER BY avg_salary DESC;`
+    title: "Quantas corridas foram concluidas com sucesso?",
+    code: `SELECT COUNT(*) AS total_concluidas
+FROM corridas
+WHERE status_da_reserva = 'Concluída';
+`
   },
   {
-    title: "Análise de Vendas",
-    description: "Cria tabelas de produtos e vendas e faz uma análise de vendas por categoria",
+    title: "Qual o valor médio das corridas por tipo de veículo?",
     code: `-- Criando as tabelas
 DROP TABLE IF EXISTS products;
 CREATE TABLE products (
@@ -86,50 +61,31 @@ ORDER BY total_revenue DESC;`
   },
   {
     title: "Análise de Dados por Data",
-    description: "Demonstração de funções de data e agregação",
-    code: `-- Criando tabela de eventos
-DROP TABLE IF EXISTS events;
-CREATE TABLE events (
-  id INTEGER PRIMARY KEY,
-  event_name TEXT,
-  event_date DATE,
-  user_id INTEGER,
-  value NUMERIC
-);
-
--- Inserindo dados de exemplo
-INSERT INTO events (event_name, event_date, user_id, value) VALUES
-('login', '2023-01-01', 1, NULL),
-('purchase', '2023-01-01', 1, 50.00),
-('login', '2023-01-02', 2, NULL),
-('add_to_cart', '2023-01-02', 2, 30.00),
-('purchase', '2023-01-03', 2, 30.00),
-('login', '2023-01-03', 3, NULL),
-('add_to_cart', '2023-01-03', 3, 100.00),
-('purchase', '2023-01-04', 3, 100.00),
-('login', '2023-01-05', 4, NULL),
-('add_to_cart', '2023-01-05', 4, 25.00),
-('add_to_cart', '2023-01-05', 4, 35.00),
-('purchase', '2023-01-06', 4, 60.00);
-
--- Análise por dia da semana
-SELECT 
-  strftime('%w', event_date) as day_of_week,
-  COUNT(*) as total_events,
-  SUM(CASE WHEN event_name = 'purchase' THEN 1 ELSE 0 END) as purchases,
-  ROUND(AVG(CASE WHEN event_name = 'purchase' THEN value END), 2) as avg_purchase_value
-FROM events
-GROUP BY day_of_week
-ORDER BY day_of_week;
-
--- Análise de conversão
-SELECT 
-  COUNT(DISTINCT user_id) as total_users,
-  SUM(CASE WHEN event_name = 'login' THEN 1 ELSE 0 END) as logins,
-  SUM(CASE WHEN event_name = 'add_to_cart' THEN 1 ELSE 0 END) as add_to_carts,
-  SUM(CASE WHEN event_name = 'purchase' THEN 1 ELSE 0 END) as purchases,
-  ROUND(SUM(CASE WHEN event_name = 'purchase' THEN 1 ELSE 0 END) * 100.0 / 
-        COUNT(DISTINCT user_id), 2) as purchase_conversion_rate
-FROM events;`
+    code: `SELECT tipo_de_veiculo,
+       AVG(valor_da_reserva) AS valor_medio
+FROM corridas
+WHERE valor_da_reserva IS NOT NULL
+GROUP BY tipo_de_veiculo
+ORDER BY valor_medio DESC;
+`
+  },
+  {
+    title: "Qual a taxa de corridas canceladas (motorista + cliente) em relação ao total?",
+    code: `SELECT
+  SUM(CASE WHEN status_da_reserva IN ('Cancelada pelo motorista','Cancelada pelo cliente')
+           THEN 1 ELSE 0 END
+  ) * 1.0 / COUNT(*) AS taxa_cancelamento
+FROM corridas;
+`
+  },
+  {
+    title: "Média de avaliação do motorista e do cliente por método de pagamento",
+    code: `SELECT metodo_de_pagamento,
+       AVG(avaliacao_do_motorista) AS media_motorista,
+       AVG(avaliacao_do_cliente) AS media_cliente
+FROM corridas
+WHERE metodo_de_pagamento IS NOT NULL
+GROUP BY metodo_de_pagamento;
+`
   }
 ];
